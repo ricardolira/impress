@@ -40,36 +40,43 @@ class FineScaleMeshMS(FineScaleMesh):
         faces = config['faces']
         volumes = config['volumes']
         not_empty = []
-        parameters = [0,1]
 
         if nodes is not None:
             names = nodes.keys()
             for i in names:
                 size = str(nodes[i]['data size'])
                 format = nodes[i]['data format']
-                command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "nodes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
-                exec(command)
+                level = nodes[i]['level']
+                    if level == 0:
+                        command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "nodes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                        exec(command)
         if edges is not None:
             names = edges.keys()
             for i in names:
                 size = str(edges[i]['data size'])
                 format = edges[i]['data format']
-                command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "edges", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
-                exec(command)
+                level = edges[i]['level']
+                    if level == 0:
+                        command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "edges", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                        exec(command)
         if faces is not None:
             names = faces.keys()
             for i in names:
                 size = str(faces[i]['data size'])
                 format = faces[i]['data format']
-                command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "faces", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
-                exec(command)
+                level = faces[i]['level']
+                if level == 0:
+                    command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "faces", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                    exec(command)
         if volumes is not None:
             names = volumes.keys()
             for i in names:
                 size = str(volumes[i]['data size'])
                 format = volumes[i]['data format']
-                command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "volumes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
-                exec(command)
+                level = volumes[i]['level']
+                if level == 0:
+                    command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "volumes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                    exec(command)
 
     def init_partition(self):
         config = self.read_config('msCoarse.yml')
@@ -141,4 +148,47 @@ class CoarseVolume(FineScaleMeshMS):
             self.volumes.enhance(i,general)
 
     def init_coarse_variables(self):
-        pass
+        config = FineScaleMeshMS.read_config('variable_settings.yml')
+
+        nodes = config['nodes']
+        edges = config['edges']
+        faces = config['faces']
+        volumes = config['volumes']
+        not_empty = []
+
+        if nodes is not None:
+            names = nodes.keys()
+            for i in names:
+                size = str(nodes[i]['data size'])
+                format = nodes[i]['data format']
+                level = nodes[i]['level']
+                    if level == 1:
+                        command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "nodes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                        exec(command)
+        if edges is not None:
+            names = edges.keys()
+            for i in names:
+                size = str(edges[i]['data size'])
+                format = edges[i]['data format']
+                level = edges[i]['level']
+                    if level == 1:
+                        command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "edges", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                        exec(command)
+        if faces is not None:
+            names = faces.keys()
+            for i in names:
+                size = str(faces[i]['data size'])
+                format = faces[i]['data format']
+                level = faces[i]['level']
+                if level == 1:
+                    command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "faces", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                    exec(command)
+        if volumes is not None:
+            names = volumes.keys()
+            for i in names:
+                size = str(volumes[i]['data size'])
+                format = volumes[i]['data format']
+                level = volumes[i]['level']
+                if level == 1:
+                    command = 'self.' + i + ' = MoabVariableMS(self.core, data_size = ' + size + ', var_type = "volumes", data_format = ' + "'" + format + "'" + ', name_tag =' + "'" + i + "'" + ')'
+                    exec(command)
