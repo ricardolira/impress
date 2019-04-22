@@ -9,25 +9,37 @@
 # level must be an integer
 
 nodes:
-  happiness:
-    data size: 1
-    data format: 'float'
-    level: 0
-
+#   happiness:
+#     data size: 1
+#     data format: 'float'
+#     level: 0
+#
 edges:
-  joy:
-    data size: 1
-    data format: 'float'
-    level: 0
+#   joy:
+#     data size: 1
+#     data format: 'float'
+#     level: 0
 
 faces:
-  pride:
+  dirichlet_faces:
+    data size: 1
+    data format: 'float'
+    level: 0
+  neumann_faces:
     data size: 1
     data format: 'float'
     level: 0
 
 volumes:
-  dreams:
-    data size: 1
+  permeability:
+    data size: 9
     data format: 'float'
     level: 0
+  source_term:
+   data size: 1
+   data format: 'float'
+   level: 0
+  poro:
+   data size: 1
+   data format: 'float'
+   level: 0
