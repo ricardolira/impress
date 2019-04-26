@@ -29,6 +29,14 @@ faces:
     data size: 1
     data format: 'float'
     level: 0
+  v_lr:
+    data size: 3
+    data format: 'float'
+    level: 0
+  n_ijk:
+    data size: 3
+    data format: 'float'
+    level: 0
 
 volumes:
   permeability:

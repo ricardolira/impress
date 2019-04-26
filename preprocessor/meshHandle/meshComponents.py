@@ -329,7 +329,7 @@ class MoabVariable(object):
         elif data_format == "bool":
             data_format = types.MB_TYPE_BIT
         self.tag_handle = self.mb.tag_get_handle(name_tag, data_size, data_format, data_density, True)
-        print("Component class {0} successfully intialized".format(self.name_tag))
+        # print("Component class {0} successfully intialized".format(self.name_tag))
 
     def __call__(self):
         return self.mb.tag_get_data(self.tag_handle, self.elements_handle)
