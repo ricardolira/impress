@@ -1,6 +1,6 @@
 """Universidade Federal de Pernambuco."""
 import numpy as np
-from preprocessor.meshHandle.finescaleMesh import FineScaleMesh as mesh
+from preprocessor.meshHandle.finescaleMesh import FineScaleMesh as load_mesh
 
 """PRESTO - Python REservoir Simulation TOolbox
    ***************************************************************************
@@ -24,8 +24,7 @@ class Mesh:
             - dim: mesh dimension (ex: 3 = tridimensional mesh file)
         Returns None
         """
-        self.M = mesh(mesh_file, dim)  # should be load_mesh( mesh_file, dim)
-        # self.comm = Epetra.PyComm()
+        self.M = load_mesh(mesh_file, dim)  # should be load_mesh( mesh_file, dim)
 
         # Get all geometric entities, separating from bondaries and internal.
         self.all_volumes = self.M.volumes.all
@@ -65,7 +64,6 @@ class Mesh:
                 self.M.source[volumes] = value
 
     def screen_faces_by_verts(self, faces):
-
         all_faces = faces
         tri_faces = []
         quad_faces = []
@@ -98,15 +96,25 @@ class Mesh:
             JI = self.M.nodes.coords[i] - self.M.nodes.coords[j]
             JK = self.M.nodes.coords[k] - self.M.nodes.coords[j]
             N_IJK = np.cross(JI, JK)
+            J2I = self.M.nodes.coords[i] - self.M.nodes.coords[j_2]
+            J2K = self.M.nodes.coords[k] - self.M.nodes.coords[j_2]
+            if boundary:
+                adj_vol = self.M.faces.bridge_adjacencies(faces, 2, 3)
+                centroid = self.M.volumes.center[adj_vol]
+                outward_vector = self.M.nodes.coords[i] - centroid
+                is_positive = np.sum(outward_vector * N_IJK, axis=1)
+                ids = np.flatnonzero(is_positive < 0)
+                N_IJK[ids] = -N_IJK[ids]
             tan_JI = np.cross(N_IJK, JI)
             tan_JK = np.cross(N_IJK, JK)
+            tan_J2I = - np.cross(N_IJK, J2I)
+            tan_J2K = - np.cross(N_IJK, J2K)
+            return N_IJK, tan_JI, tan_JK, tan_J2I, tan_J2K
         except ValueError:   # To calculate a triangular face area vector
             i, j, k = self.get_position_IJK_verts(faces)
             JI = self.M.nodes.coords[i] - self.M.nodes.coords[j]
             JK = self.M.nodes.coords[k] - self.M.nodes.coords[j]
             N_IJK = np.cross(JI, JK) / 2
-            tan_JI = np.cross(N_IJK, JI)
-            tan_JK = np.cross(N_IJK, JK)
         if boundary:
             adj_vol = self.M.faces.bridge_adjacencies(faces, 2, 3)
             centroid = self.M.volumes.center[adj_vol]
@@ -114,18 +122,21 @@ class Mesh:
             is_positive = np.sum(outward_vector * N_IJK, axis=1)
             ids = np.flatnonzero(is_positive < 0)
             N_IJK[ids] = -N_IJK[ids]
-            tan_JI = np.cross(N_IJK, JI)
-            tan_JK = np.cross(N_IJK, JK)
+        tan_JI = np.cross(N_IJK, JI)
+        tan_JK = np.cross(N_IJK, JK)
         return N_IJK, tan_JI, tan_JK
 
     def get_additional_vectors_and_height(self, faces, boundary=False):
         N_IJK = self.construct_face_vectors(faces)[0]
         area = self.get_area(faces)
-        if boundary:
-            pass
-            # return LJ, h_L
         j = self.get_position_IJK_verts(faces)[1]
         j_coords = self.M.nodes.coords[j]
+        if boundary:
+            left_volumes = self.get_left_and_right_volumes(faces, boundary)
+            L_center = self.M.volumes.center[left_volumes]
+            LJ = j_coords - L_center
+            h_L = np.absolute(np.sum(N_IJK * LJ, axis=1) / area)
+            return LJ, h_L
         left_volumes, right_volumes = self.get_left_and_right_volumes(faces)
         L_center = self.M.volumes.center[left_volumes]
         R_center = self.M.volumes.center[right_volumes]
@@ -134,12 +145,44 @@ class Mesh:
         h_L = np.absolute(np.sum(N_IJK * LJ, axis=1) / area)
         RJ = j_coords - R_center
         h_R = np.absolute(np.sum(N_IJK * RJ, axis=1) / area)
-
         return LR, h_L, h_R
 
     def get_area(self, faces):
         face_vectors = self.construct_face_vectors(faces)[0]
-        return np.sum(face_vectors * face_vectors, axis=1)
+        return np.sqrt(np.sum(face_vectors * face_vectors, axis=1))
+
+    def get_volume(self, volumes):
+        def _get_volume(volume):
+            n_verts = len(self.M.volumes.connectivities(volumes)[volume])
+            if n_verts == 4:
+                print(self.M.volumes.connectivities(volumes)[volume])
+                h, i, j, k = self.M.volumes.connectivities(volumes)[volume]
+                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
+                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
+                jh = self.M.nodes.coords[[h]] - self.M.nodes.coords[[j]]
+                volume = abs(np.dot(np.cross(ji[0], jk[0]), jh[0]))/6.0
+                return volume
+            elif n_verts == 5:
+                h, i, j, k, l = self.M.volumes.connectivities(volumes)[volume]
+                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
+                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
+                jh = self.M.nodes.coords[[l]] - self.M.nodes.coords[[j]]
+                volume = abs(np.dot(np.cross(ji[0], jk[0]), jh[0])) / 3.
+                return volume
+            elif n_verts == 8:
+                h, i, j, k, l, _, _, _ = self.M.volumes.connectivities(volumes)[volume]
+                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
+                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
+                jh = self.M.nodes.coords[[h]] - self.M.nodes.coords[[j]]
+                jl = self.M.nodes.coords[[l]] - self.M.nodes.coords[[j]]
+                volume = abs(np.dot(np.cross(ji[0], jk[0]), jl[0]))
+
+
+                return volume
+            else:
+                raise "Not implemented volume"
+        n_verts = [_get_volume(volume) for volume in volumes]
+        print(n_verts)
 
 
     def get_position_IJK_verts(self, faces):

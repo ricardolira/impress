@@ -127,7 +127,7 @@ class PreMpfaDTest(unittest.TestCase):
         tri_faces, quad_faces = self.mesh.screen_faces_by_verts(self.mesh.b_faces)
         face_area_quad = self.mesh.get_area(quad_faces)
         face_area_tri = self.mesh.get_area(tri_faces)
-        self.assertEqual(face_area_tri[0], .0625)
+        self.assertEqual(face_area_tri[0], .25)
         self.assertEqual(face_area_quad[2], 1.)
 
     def test_calculate_additional_geometric_information(self):
@@ -135,6 +135,16 @@ class PreMpfaDTest(unittest.TestCase):
         quad_faces = self.mesh.screen_faces_by_verts(in_faces)[1]
         LR, h_L, h_R = self.mesh.get_additional_vectors_and_height(quad_faces)
         self.assertEqual(LR[0][0], h_L + h_R)
+
+    def test_calculate_additional_geometric_information_boundary(self):
+        b_faces = self.mesh.b_faces
+        quad_faces = self.mesh.screen_faces_by_verts(b_faces)[1]
+        LJ, h_L = self.mesh.get_additional_vectors_and_height(quad_faces,
+                                                              boundary=True)
+        # print(LJ, h_L)
+
+    def test_calculate_volumes(self):
+        self.mesh.get_volume(self.mesh.all_volumes)
 
 
 

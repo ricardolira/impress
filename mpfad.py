@@ -31,26 +31,31 @@ class MpfaD:
         area = np.sum(normal_vector * normal_vector, axis=1)
         return vmv / area
 
-    def d_flux_term(self, tan, vec, S, h1, Kn1, Kt1, h2=0, Kt2=0,
-                    Kn2=0, boundary=False):
+    def n_flux_term(self, K_L_n, h_L, face_area, K_R_n=0, h_R=0,
+                    boundary=False):
+        if boundary:
+            K_eq = (1 / h_L)*(face_area * K_L_n)
+            return K_eq
+        K_eq = (K_R_n * K_L_n)/(K_R_n * h_L + K_L_n * h_R) * face_area
+        return K_eq
+
+    def d_flux_term(self, tan, vec, S, h1, Kn1, Kt1, h2=0, Kt2=0, Kn2=0,
+                    boundary=False):
         if not boundary:
-            mesh_anisotropy_term = (np.dot(tan, vec)/(S ** 2))
+            mesh_anisotropy_term = (np.sum(tan * vec, axis=1)/(S ** 2))
             physical_anisotropy_term = -((1 / S) * (h1 * (Kt1 / Kn1)
                                          + h2 * (Kt2 / Kn2)))
             cross_diffusion_term = (mesh_anisotropy_term +
                                     physical_anisotropy_term)
             return cross_diffusion_term
         if boundary:
-            dot_term = np.dot(-tan, vec) * Kn1
+            dot_term = np.sum(-tan * vec, axis=1) * Kn1
             cdf_term = h1 * S * Kt1
             b_cross_difusion_term = (dot_term + cdf_term) / (2 * h1 * S)
             return b_cross_difusion_term
-    
-
 
     def _node_treatment(self, args):
         pass
-
 
     def linear_problem(self, args):
         pass
