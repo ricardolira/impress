@@ -1,8 +1,8 @@
 """Universidade Federal de Pernambuco."""
 import numpy as np
-from mesh_preprocessor import Mesh
+# from mesh_preprocessor import Mesh
 from PyTrilinos import Epetra, AztecOO
-import time
+# import time
 
 """PRESTO - Python REservoir Simulation TOolbox
    ***************************************************************************
@@ -54,21 +54,32 @@ class MpfaD:
             b_cross_difusion_term = (dot_term + cdf_term) / (2 * h1 * S)
             return b_cross_difusion_term
 
+    def get_source_term(self, args):
+        pass
+    def assemble(self, ids_cols, ids_rows, values):
+        # self.T.InsertGlobalValues(ids_cols, ids_rows, values)
+        pass
     def _node_treatment(self, args):
         pass
 
     def linear_problem(self, args):
         pass
         # go through volumes and fill source_term
+        # get source term
         # go through boundary faces:
         #   triangular b_faces
+        #      assemble(b_triangular_faces)
         #   quadriangular b_faces
-
+        #      assemble(b_quadrangular_faces)
         # go through intern faces:
         #   triangular in_faces
+        #      assemble(in_triangular_faces)
         #   quadriangular in_faces
+        #      assemble(in_quadrangular_faces)
 
         # go through vertex
+        #   call interpolation method
+        #   assemble(vertex)
 
         # self.T.InsertGlobalValues(self.ids, self.v_ids, self.ivalues)
         # self.T.InsertGlobalValues(id_volumes, id_volumes, all_LHS)

@@ -1,6 +1,8 @@
 """Universidade Federal de Pernambuco."""
 import numpy as np
 from preprocessor.meshHandle.finescaleMesh import FineScaleMesh as load_mesh
+from scipy.spatial import ConvexHull
+# import preprocessor.geoUtil.cgeom as geo
 
 """PRESTO - Python REservoir Simulation TOolbox
    ***************************************************************************
@@ -13,6 +15,7 @@ from preprocessor.meshHandle.finescaleMesh import FineScaleMesh as load_mesh
    Depencencies: Build on top of the Intuitive Multilevel Preprocessor for
    Smart Simulation - IMPRESS"""
 
+
 class Mesh:
     """Implements the MPFA-D method."""
 
@@ -24,8 +27,7 @@ class Mesh:
             - dim: mesh dimension (ex: 3 = tridimensional mesh file)
         Returns None
         """
-        self.M = load_mesh(mesh_file, dim)  # should be load_mesh( mesh_file, dim)
-
+        self.M = load_mesh(mesh_file, dim)
         # Get all geometric entities, separating from bondaries and internal.
         self.all_volumes = self.M.volumes.all
 
@@ -151,39 +153,13 @@ class Mesh:
         face_vectors = self.construct_face_vectors(faces)[0]
         return np.sqrt(np.sum(face_vectors * face_vectors, axis=1))
 
+    # TODO: Go on a Cythonized func
     def get_volume(self, volumes):
         def _get_volume(volume):
-            n_verts = len(self.M.volumes.connectivities(volumes)[volume])
-            if n_verts == 4:
-                print(self.M.volumes.connectivities(volumes)[volume])
-                h, i, j, k = self.M.volumes.connectivities(volumes)[volume]
-                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
-                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
-                jh = self.M.nodes.coords[[h]] - self.M.nodes.coords[[j]]
-                volume = abs(np.dot(np.cross(ji[0], jk[0]), jh[0]))/6.0
-                return volume
-            elif n_verts == 5:
-                h, i, j, k, l = self.M.volumes.connectivities(volumes)[volume]
-                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
-                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
-                jh = self.M.nodes.coords[[l]] - self.M.nodes.coords[[j]]
-                volume = abs(np.dot(np.cross(ji[0], jk[0]), jh[0])) / 3.
-                return volume
-            elif n_verts == 8:
-                h, i, j, k, l, _, _, _ = self.M.volumes.connectivities(volumes)[volume]
-                ji = self.M.nodes.coords[[i]] - self.M.nodes.coords[[j]]
-                jk = self.M.nodes.coords[[k]] - self.M.nodes.coords[[j]]
-                jh = self.M.nodes.coords[[h]] - self.M.nodes.coords[[j]]
-                jl = self.M.nodes.coords[[l]] - self.M.nodes.coords[[j]]
-                volume = abs(np.dot(np.cross(ji[0], jk[0]), jl[0]))
-
-
-                return volume
-            else:
-                raise "Not implemented volume"
+            volume_verts = self.M.volumes.connectivities(volumes)[volume]
+            return ConvexHull(volume_verts).volume
         n_verts = [_get_volume(volume) for volume in volumes]
         print(n_verts)
-
 
     def get_position_IJK_verts(self, faces):
         verts = self.M.faces.connectivities(faces)

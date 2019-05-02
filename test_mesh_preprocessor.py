@@ -124,7 +124,8 @@ class PreMpfaDTest(unittest.TestCase):
         self.assertFalse(list(np.flatnonzero(is_positive < 0)))
 
     def test_calculate_area_vector(self):
-        tri_faces, quad_faces = self.mesh.screen_faces_by_verts(self.mesh.b_faces)
+        b_faces = self.mesh.b_faces
+        tri_faces, quad_faces = self.mesh.screen_faces_by_verts(b_faces)
         face_area_quad = self.mesh.get_area(quad_faces)
         face_area_tri = self.mesh.get_area(tri_faces)
         self.assertEqual(face_area_tri[0], .25)
@@ -144,10 +145,8 @@ class PreMpfaDTest(unittest.TestCase):
         # print(LJ, h_L)
 
     def test_calculate_volumes(self):
-        self.mesh.get_volume(self.mesh.all_volumes)
-
-
-
+        all_vol_volumes = self.mesh.get_volume(self.mesh.all_volumes)
+        self.assertEqual(sum(all_vol_volumes), 1.)
 
 
 if __name__ == "__main__":
