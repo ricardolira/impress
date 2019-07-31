@@ -14,10 +14,12 @@ class MpfaDTest(unittest.TestCase):
         self.mesh = Mesh('mesh/mpfad.h5m', dim=3)
         self.mesh.set_boundary_conditions('Dirichlet', {101: 0.0})
         self.mesh.set_material_prop('permeability', {1: K_1})
+        self.mesh.set_material_prop('source', {1: 1.0})
         self.mpfad = MpfaD(self.mesh)
 
     def tearDown(self):
         self.mpfad = None
+        self.mesh = None
 
     def test_preprocessor_class_should_be_none(self):
         """Test class initiatilization."""
@@ -43,8 +45,9 @@ class MpfaDTest(unittest.TestCase):
         N_IJK, tan_JI, tan_JK, tan_J2I, tan_J2K = \
             self.mesh.construct_face_vectors(tetra_faces)
         face_area = self.mesh.get_area(tetra_faces)
-        LJ, h_L = self.mesh.get_additional_vectors_and_height(tetra_faces,
-                                                              boundary=is_boundary)
+        print(tetra_faces)
+        LJ, h_L, LJ2 = self.mesh.get_additional_vectors_and_height(tetra_faces,
+                                                                   boundary=is_boundary)
         perm = self.mesh.permeability[volumes][0][0]
         K_L_n = self.mpfad.multiply(N_IJK, perm, N_IJK)
         K_L_JI = self.mpfad.multiply(N_IJK, perm, tan_JI)
@@ -55,12 +58,10 @@ class MpfaDTest(unittest.TestCase):
                                       K_L_JK, boundary=is_boundary)
         D_JI = self.mpfad.d_flux_term(tan_JI, LJ, face_area / 2, h_L, K_L_n,
                                       K_L_JI, boundary=is_boundary)
-        D_J2K = self.mpfad.d_flux_term(tan_J2K, LJ, face_area / 2, h_L, K_L_n,
+        D_J2K = self.mpfad.d_flux_term(tan_J2K, LJ2, face_area / 2, h_L, K_L_n,
                                        K_L_J2K, boundary=is_boundary)
-        D_J2I = self.mpfad.d_flux_term(tan_J2I, LJ, face_area / 2, h_L, K_L_n,
+        D_J2I = self.mpfad.d_flux_term(tan_J2I, LJ2, face_area / 2, h_L, K_L_n,
                                        K_L_J2I, boundary=is_boundary)
-        K_eq = self.mpfad.n_flux_term(K_L_n, h_L, face_area,
-                                      boundary=is_boundary)
         self.assertListEqual(list(D_JI), list(D_J2K))
         self.assertListEqual(list(D_JK), list(D_J2I))
 
@@ -87,7 +88,7 @@ class MpfaDTest(unittest.TestCase):
 
         self.assertIsNotNone([D_JK, D_JI, K_eq])
 
-    def test_cross_diffusion_term_for_itnern_tri_elems(self):
+    def test_cross_diffusion_term_for_intern_tri_elems(self):
         in_faces = self.mesh.in_faces
         tri_faces, tetra_faces = self.mesh.screen_faces_by_verts(in_faces)
         left_volumes, right_volumes = self.mesh.get_left_and_right_volumes(tetra_faces)
@@ -118,6 +119,50 @@ class MpfaDTest(unittest.TestCase):
         K_eq = self.mpfad.n_flux_term(K_L_n, h_L, face_area, K_R_n, h_R)
         self.assertListEqual(list(D_JI), list(D_J2K))
         self.assertListEqual(list(D_JK), list(D_J2I))
+
+    def test_if_source_term_is_assigned(self):
+        all_volumes = self.mesh.all_volumes
+        all_vol_volumes = self.mesh.get_volume(all_volumes)
+        wells_term = self.mesh.source_term[all_volumes][:, 0]
+        wells = wells_term * all_vol_volumes
+        self.assertTrue(all(wells_term == 1))
+        self.assertEqual(np.sum(wells), 1.)
+
+    @unittest.skip("skipping this test. need to rethink how to perform mpfad")
+    def test_assembling_linear_problem(self):
+        # go through volumes and fill source_term
+        # get source term
+        # go through boundary faces:
+
+        #   triangular b_faces
+        #      assemble(b_triangular_faces)
+        #   quadriangular b_faces
+        #      assemble(b_quadrangular_faces)
+        # go through intern faces:
+        in_faces = self.mesh.in_faces
+        tri_faces, tetra_faces = self.mesh.screen_faces_by_verts(in_faces)
+        #   triangular in_faces
+        left_volumes, right_volumes = self.mesh.get_left_and_right_volumes(tri_faces)
+        N_IJK, tan_JI, tan_JK = \
+            self.mesh.construct_face_vectors(tri_faces)
+        face_area = self.mesh.get_area(tri_faces)
+        LR, h_L, h_R = self.mesh.get_additional_vectors_and_height(tri_faces)
+        left_perm = perm[left_volumes][0][0]
+        right_perm = perm[right_volumes][0][0]
+        #      assemble(in_triangular_faces)
+
+        #   quadriangular in_faces
+        left_volumes, right_volumes = self.mesh.get_left_and_right_volumes(tetra_faces)
+        N_IJK, tan_JI, tan_JK, tan_J2I, tan_J2K = \
+            self.mesh.construct_face_vectors(tetra_faces)
+        face_area = self.mesh.get_area(tetra_faces)
+        LR, h_L, h_R = self.mesh.get_additional_vectors_and_height(tetra_faces)
+        left_perm = perm[left_volumes][0][0]
+        right_perm = perm[right_volumes][0][0]
+        #      assemble(in_quadrangular_faces)
+
+
+
 
 if __name__== "__main__":
     unittest.main()

@@ -73,7 +73,7 @@ class CoreMoab:
 
     def skinner_operation(self):
         skin = sk.Skinner(self.mb)
-        print("Entering skinner test")
+        # print("Entering skinner test")
 
         if self.dimension == 3:
             faces_on_skin_handles = skin.find_skin(self.root_set, self.all_volumes[:])
@@ -96,24 +96,26 @@ class CoreMoab:
             faces_on_skin_handles = self.range_index(np.bitwise_not(external_faces_index),self.all_faces)
             volumes_on_skin_handles = rng.Range()
 
-        print("Skinning Operation Successful")
+        # print("Skinning Operation Successful")
         return [nodes_on_skin_handles, edges_on_skin_handles, faces_on_skin_handles, volumes_on_skin_handles]
 
     def check_integrity(self):
         # check if the mesh contains
         check_list = [len(self.all_nodes), len(self.all_edges), len(self.all_faces), len(self.all_volumes)]
         list_words = ['Nodes', "Edges", "Faces", "Volumes"]
-        print("Checking mesh integrity:")
+        # print("Checking mesh integrity:")
         index = 0
         if self.dimension == 2:
             list_words = list_words[:-1]
             check_list = check_list[:-1]
         for entity in check_list:
             if entity > 0:
-                print(list_words[index] + " successfully imported")
+                pass
+                # print(list_words[index] + " successfully imported")
             else:
-                print("------------------------------\nError creating \n" +
-                      list_words[index] + " was not imported")
+                pass
+                # print("------------------------------\nError creating \n" +
+                #       list_words[index] + " was not imported")
             index += 1
 
     def create_parallel_meshset(self):
@@ -123,10 +125,10 @@ class CoreMoab:
             parallel_tag = self.mb.tag_get_handle("PARALLEL_PARTITION")
             flag = False
         except:
-            print("Parallel Partition Tag not found \nAborting creating parallel partition entities.")
+            # print("Parallel Partition Tag not found \nAborting creating parallel partition entities.")
             flag = True
         if not flag:
-            print("Parallel Partition Tag detected \nCreating parallel partitions entities")
+            # print("Parallel Partition Tag detected \nCreating parallel partitions entities")
             self.handleDic["PARALLEL_PARTITION"] = parallel_tag
             parallel_sets = self.mb.get_entities_by_type_and_tag(
                 0, types.MBENTITYSET, np.array(

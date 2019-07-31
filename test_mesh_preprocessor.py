@@ -114,6 +114,7 @@ class PreMpfaDTest(unittest.TestCase):
         self.assertFalse(list(np.flatnonzero(is_positive < 0)))
 
     def test_get_normal_face_area_vector_points_outward(self):
+        """Test if bondary volumes have their normal outward oriented."""
         quad_faces = self.mesh.screen_faces_by_verts(self.mesh.b_faces)[1]
         N_IJK = self.mesh.construct_face_vectors(quad_faces, boundary=True)[0]
         adj_vol = self.mesh.M.faces.bridge_adjacencies(quad_faces, 2, 3)
@@ -128,8 +129,7 @@ class PreMpfaDTest(unittest.TestCase):
         tri_faces, quad_faces = self.mesh.screen_faces_by_verts(b_faces)
         face_area_quad = self.mesh.get_area(quad_faces)
         face_area_tri = self.mesh.get_area(tri_faces)
-        self.assertEqual(face_area_tri[0], .25)
-        self.assertEqual(face_area_quad[2], 1.)
+        self.assertEqual(np.sum(face_area_tri) + np.sum(face_area_quad), 6.)
 
     def test_calculate_additional_geometric_information(self):
         in_faces = self.mesh.in_faces
@@ -137,16 +137,21 @@ class PreMpfaDTest(unittest.TestCase):
         LR, h_L, h_R = self.mesh.get_additional_vectors_and_height(quad_faces)
         self.assertEqual(LR[0][0], h_L + h_R)
 
+    @unittest.skip("Test not ready. Still missing a test case assertion")
     def test_calculate_additional_geometric_information_boundary(self):
         b_faces = self.mesh.b_faces
         quad_faces = self.mesh.screen_faces_by_verts(b_faces)[1]
         LJ, h_L = self.mesh.get_additional_vectors_and_height(quad_faces,
                                                               boundary=True)
-        # print(LJ, h_L)
+        pass
 
     def test_calculate_volumes(self):
         all_vol_volumes = self.mesh.get_volume(self.mesh.all_volumes)
+        # print(all_vol_volumes)
         self.assertEqual(sum(all_vol_volumes), 1.)
+
+    def test_run_preprocessor(self):
+        self.mesh.run_preprocessor()
 
 
 if __name__ == "__main__":
