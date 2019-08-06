@@ -39,10 +39,10 @@ class Mesh:
         self.in_verts = self.M.nodes.internal
         self.b_verts = self.M.nodes.boundary
 
-        # Get all coordinates
         self.centroid = self.M.volumes.center
 
     def set_boundary_conditions(self, boundary_type, boundary_flag):
+        """Call the boundary conditions assembly."""
         for _flag, value in boundary_flag.items():
             faces = self.M.faces.flag[_flag]
             if boundary_type == 'Dirichlet':
@@ -51,6 +51,7 @@ class Mesh:
                 self.M.neumann_faces[faces] = value
 
     def set_material_prop(self, material_property, material_flag):
+        """Assign permeability, saturation and other relevant props."""
         for _flag, value in material_flag.items():
             volumes = self.M.volumes.flag[_flag]
             if material_property == 'permeability':
@@ -63,9 +64,12 @@ class Mesh:
             if material_property == 'porosity':
                 self.M.porosity[volumes] = value
             if material_property == 'source':
-                self.M.source[volumes] = value
+                # Check type of well
+                self.M.source_term[volumes] = value
+                self.source_term = self.M.source_term[volumes]
 
     def screen_faces_by_verts(self, faces):
+        """Separation between triangular and quadrangular faces in volumes."""
         all_faces = faces
         tri_faces = []
         quad_faces = []
@@ -78,6 +82,7 @@ class Mesh:
         return tri_faces, quad_faces
 
     def get_left_and_right_volumes(self, faces, boundary=False):
+        """Return the left side and right side convention volumes."""
         if boundary:
             adj_vol = self.M.faces.bridge_adjacencies(faces, 2, 3)
             return adj_vol
@@ -93,6 +98,7 @@ class Mesh:
         return left_volumes, right_volumes
 
     def construct_face_vectors(self, faces, boundary=False):
+        """Return the face vectors."""
         try:  # To calculate a quadrilateral face area vector
             i, j, k, j_2 = self.get_position_IJK_verts(faces)
             JI = self.M.nodes.coords[i] - self.M.nodes.coords[j]
@@ -129,6 +135,7 @@ class Mesh:
         return N_IJK, tan_JI, tan_JK
 
     def get_additional_vectors_and_height(self, faces, boundary=False):
+        """Complimentary information for calculations."""
         N_IJK = self.construct_face_vectors(faces)[0]
         area = self.get_area(faces)
         j = self.get_position_IJK_verts(faces)[1]
@@ -138,7 +145,13 @@ class Mesh:
             L_center = self.M.volumes.center[left_volumes]
             LJ = j_coords - L_center
             h_L = np.absolute(np.sum(N_IJK * LJ, axis=1) / area)
-            return LJ, h_L
+            try:
+                j2 = self.get_position_IJK_verts(faces)[3]
+                j2_coords = self.M.nodes.coords[j2]
+                LJ2 = j2_coords - L_center
+                return LJ, h_L, LJ2
+            except IndexError:
+                return LJ, h_L
         left_volumes, right_volumes = self.get_left_and_right_volumes(faces)
         L_center = self.M.volumes.center[left_volumes]
         R_center = self.M.volumes.center[right_volumes]
@@ -150,18 +163,22 @@ class Mesh:
         return LR, h_L, h_R
 
     def get_area(self, faces):
+        """Return all areas."""
         face_vectors = self.construct_face_vectors(faces)[0]
         return np.sqrt(np.sum(face_vectors * face_vectors, axis=1))
 
     # TODO: Go on a Cythonized func
     def get_volume(self, volumes):
+        """Return an arrey of volumes."""
         def _get_volume(volume):
             volume_verts = self.M.volumes.connectivities(volumes)[volume]
-            return ConvexHull(volume_verts).volume
-        n_verts = [_get_volume(volume) for volume in volumes]
-        print(n_verts)
+            verts_coords = self.M.nodes.coords(volume_verts)
+            return ConvexHull(verts_coords).volume
+        vols = np.array([_get_volume(volume) for volume in volumes])
+        return vols
 
     def get_position_IJK_verts(self, faces):
+        """Get the position of each vert."""
         verts = self.M.faces.connectivities(faces)
         try:  # To get all vertices in a quadrangular face
             i, j, k, j_2 = verts[:, 0], verts[:, 1], verts[:, 2], verts[:, 3]
@@ -170,5 +187,54 @@ class Mesh:
             i, j, k = verts[:, 0], verts[:, 1], verts[:, 2]
         return i, j, k
 
-    def record_data(self, args):
-        pass
+    def run_preprocessor(self):
+        """Preprocess the mesh."""
+        is_boundary = True
+        b_faces_tri, b_faces_quad = self.screen_faces_by_verts(self.b_faces)
+
+        self.b_left_volumes_tri =\
+            self.get_left_and_right_volumes(b_faces_tri, boundary=is_boundary)
+        self.b_N_IJK_tri, self.b_tan_JI_tri, self.b_tan_JK_tri =\
+            self.construct_face_vectors(b_faces_tri, boundary=is_boundary)
+        self.b_LJ_tri, self.b_h_L_tri =\
+            self.get_additional_vectors_and_height(b_faces_tri,
+                                                   boundary=is_boundary)
+        self.b_area_tri = self.get_area(b_faces_tri)
+        self.b_i_tri, self.b_j_tri, self.b_k_tri =\
+            self.get_position_IJK_verts(b_faces_tri)
+
+        self.b_left_volumes_quad =\
+            self.get_left_and_right_volumes(b_faces_quad, boundary=is_boundary)
+        self.b_N_IJK_quad, self.b_tan_JI_quad, self.b_tan_JK_quad,\
+            self.b_tan_J2I_quad, self.b_tan_J2K_quad =\
+            self.construct_face_vectors(b_faces_quad, boundary=is_boundary)
+        self.b_LJ_quad, self.b_h_L_quad, self.b_LJ2_quad =\
+            self.get_additional_vectors_and_height(b_faces_quad,
+                                                   boundary=is_boundary)
+        self.b_area_quad = self.get_area(b_faces_quad)
+        self.b_i_quad, self.b_j_quad, self.b_k_quad, self.b_j2_quad =\
+            self.get_position_IJK_verts(b_faces_quad)
+        is_boundary = False
+
+        in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
+        self.in_left_volumes_tri, self.in_right_volumes_tri =\
+            self.get_left_and_right_volumes(in_faces_tri)
+        self.in_N_IJK_tri, self.in_tan_JI_tri, self.in_tan_JK_tri =\
+            self.construct_face_vectors(in_faces_tri)
+        self.in_LR_tri, self.in_h_L_tri, self.in_h_R_tri =\
+            self.get_additional_vectors_and_height(in_faces_tri)
+        self.in_area_tri = self.get_area(in_faces_tri)
+        self.in_i_tri, self.in_j_tri, self.in_k_tri =\
+            self.get_position_IJK_verts(in_faces_tri)
+
+        in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
+        self.in_left_volumes_quad, self.in_right_volumes_quad =\
+            self.get_left_and_right_volumes(in_faces_quad)
+        self.b_N_IJK_quad, self.b_tan_JI_quad, self.b_tan_JK_quad,\
+            self.b_tan_J2I_quad, self.b_tan_J2K_quad =\
+            self.construct_face_vectors(in_faces_quad)
+        self.in_LR_quad, self.in_h_L_quad, self.in_h_R_quad =\
+            self.get_additional_vectors_and_height(in_faces_quad)
+        self.in_area_quad = self.get_area(in_faces_quad)
+        self.in_i_quad, self.in_j_quad, self.in_k_quad, self.in_j2_quad =\
+            self.get_position_IJK_verts(in_faces_quad)

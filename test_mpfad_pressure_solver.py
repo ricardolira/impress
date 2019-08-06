@@ -10,13 +10,12 @@ class PressureSolverTest(unittest.TestCase):
         K_1 = [1.0, 0.0, 0.0,
                0.0, 1.0, 0.0,
                0.0, 0.0, 1.0]
-        self.mesh1 = Mesh('mesh/mpfad_pressure_test.h5m', dim=3)
+        self.mesh1 = Mesh('mesh/test_mesh_5_vols.h5m', dim=3)
         self.mesh1.set_boundary_conditions('Dirichlet', {101: 0.0})
         self.mesh1.set_boundary_conditions('Neumann', {201: 0.0})
         self.mesh1.set_material_prop('permeability', {1: K_1})
         self.mesh1.set_material_prop('source', {1: 1.0})
         self.mpfad1 = MpfaD(self.mesh1)
-
 
     def tearDown(self):
         self.mpfad = None
@@ -24,6 +23,7 @@ class PressureSolverTest(unittest.TestCase):
     def test_set_boundary_conditions_on_vertex(self):
         b_verts = self.mesh1.b_verts
         b_verts_coords = self.mesh1.M.nodes.coords(b_verts)
+        print(b_verts)
         b_verts_pressure = {}
         # b_verts_pressure[b_verts] = b_verts_coords[:, 0]
         # print(b_verts, b_verts_coords[:, 0])

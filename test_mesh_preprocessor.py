@@ -151,7 +151,10 @@ class PreMpfaDTest(unittest.TestCase):
         self.assertEqual(sum(all_vol_volumes), 1.)
 
     def test_run_preprocessor(self):
-        self.mesh.run_preprocessor()
+        try:
+            self.mesh.run_preprocessor()
+        except:
+            self.fail("mesh.preprocessor did not run.")
 
 
 if __name__ == "__main__":
