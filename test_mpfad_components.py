@@ -164,5 +164,5 @@ class MpfaDTest(unittest.TestCase):
         #      assemble(in_quadrangular_faces)
 
 
-if __name__ == "__main__":
+if __name__== "__main__":
     unittest.main()

@@ -10,7 +10,7 @@ class PressureSolverTest(unittest.TestCase):
         K_1 = [1.0, 0.0, 0.0,
                0.0, 1.0, 0.0,
                0.0, 0.0, 1.0]
-        self.mesh1 = Mesh('mesh/test_mesh_5_vols.h5m', dim=3)
+        self.mesh1 = Mesh('mesh/mesh_slanted_mesh.h5m', dim=3)
         self.mesh1.set_boundary_conditions('Dirichlet', {101: 0.0})
         self.mesh1.set_boundary_conditions('Neumann', {201: 0.0})
         self.mesh1.set_material_prop('permeability', {1: K_1})

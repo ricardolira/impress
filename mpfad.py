@@ -1,7 +1,8 @@
 """Universidade Federal de Pernambuco."""
 import numpy as np
-# from mesh_preprocessor import Mesh
-from PyTrilinos import Epetra, AztecOO
+from scipy.sparse import lil_matrix
+from scipy.sparse.linalg import spsolve
+# from PyTrilinos import Epetra, AztecOO
 # import time
 
 """PRESTO - Python REservoir Simulation TOolbox
@@ -17,12 +18,17 @@ from PyTrilinos import Epetra, AztecOO
 class MpfaD:
     def __init__(self, mesh, interpolation_method=None, x=None):
         self.mesh = mesh
-        self.comm = Epetra.PyComm()
-        std_map = Epetra.Map(len(mesh.all_volumes), 0, self.comm)
-        self.T = Epetra.CrsMatrix(Epetra.Copy, std_map, 0)
-        self.Q = Epetra.Vector(std_map)
+        # self.comm = Epetra.PyComm()
+        # std_map = Epetra.Map(len(mesh.all_volumes), 0, self.comm)
+        # self.T = Epetra.CrsMatrix(Epetra.Copy, std_map, 0)
+        self.volumes = mesh.all_volumes
+        self.T = lil_matrix((len(self.volumes), len(self.volumes)),
+                            dtype=np.float)
+        # self.Q = Epetra.Vector(std_map)
+        self.Q = lil_matrix((len(self.volumes), 1), dtype=np.float)
         if x is None:
-            self.x = Epetra.Vector(std_map)
+            # self.x = Epetra.Vector(std_map)
+            self.x = lil_matrix((len(self.volumes), 1), dtype=np.float)
         else:
             self.x = x
         self.mesh.run_preprocessor()
@@ -63,65 +69,62 @@ class MpfaD:
     def assemble_transmissibility_matrix(self, perm):
         is_boundary = True
         b_left_volumes_tri = self.mesh.b_left_volumes_tri
-        b_N_IJK_tri = self.mesh.b_N_IJK_tri
-        b_tan_JI_tri = self.mesh.b_tan_JI_tri
-        b_tan_JK_tri = self.mesh.b_tan_JK_tri
-        b_LJ_tri = self.mesh.b_LJ_tri
-        b_h_L_tri = self.mesh.b_h_L_tri
-        b_area_tri = self.mesh.b_area_tri
-        b_i_tri = self.mesh.b_i_tri
-        b_j_tri = self.mesh.b_j_tri
-        b_k_tri = self.mesh.b_k_tri
-        K_L_n = self.mpfad.multiply(b_N_IJK_tri, perm, b_N_IJK_tri)
-        K_L_JI = self.mpfad.multiply(b_N_IJK_tri, perm, b_tan_JI_tri)
-        K_L_JK = self.mpfad.multiply(b_N_IJK_tri, perm, b_tan_JK_tri)
-        D_JK = self.mpfad.d_flux_term(b_tan_JK_tri, b_LJ_tri, b_area_tri,
-                                      b_h_L_tri, K_L_n, K_L_JK,
+        K_L_n = self.mpfad.multiply(self.mesh.b_N_IJK_tri, perm,
+                                    self.mesh.b_N_IJK_tri)
+        K_L_JI = self.mpfad.multiply(self.mesh.b_N_IJK_tri, perm,
+                                     self.mesh.b_tan_JI_tri)
+        K_L_JK = self.mpfad.multiply(self.mesh.b_N_IJK_tri, perm,
+                                     self.mesh.b_tan_JK_tri)
+        D_JK = self.mpfad.d_flux_term(self.mesh.b_tan_JK_tri,
+                                      self.mesh.b_LJ_tri, self.mesh.b_area_tri,
+                                      self.mesh.b_h_L_tri, K_L_n, K_L_JK,
                                       boundary=is_boundary)
-        D_JI = self.mpfad.d_flux_term(b_tan_JI_tri, b_LJ_tri, b_area_tri,
-                                      b_h_L_tri, K_L_n, K_L_JI,
+        D_JI = self.mpfad.d_flux_term(self.mesh.b_tan_JI_tri,
+                                      self.mesh.b_LJ_tri, self.mesh.b_area_tri,
+                                      self.mesh.b_h_L_tri, K_L_n, K_L_JI,
                                       boundary=is_boundary)
-        K_eq_tri = self.mpfad.n_flux_term(K_L_n, b_h_L_tri, b_area_tri,
+        K_eq_tri = self.mpfad.n_flux_term(K_L_n, self.mesh.b_h_L_tri,
+                                          self.mesh.b_area_tri,
                                           boundary=is_boundary)
 
-        b_left_volumes_quad = self.mesh.b_left_volumes_quad
-        b_N_IJK_quad = self.mesh.b_N_IJK_quad
-        b_tan_JI_quad = self.mesh.b_tan_JI_quad
-        b_tan_JK_quad = self.mesh.b_tan_JK_quad
-        b_tan_J2I_quad = self.mesh.b_tan_J2I_quad
-        b_tan_J2K_quad = self.mesh.b_tan_J2K_quad
-        b_LJ_quad = self.mesh.b_LJ_quad
-        b_LJ2_quad = self.mesh.b_LJ2_quad
-        b_h_L_quad = self.mesh.b_h_L_quad
-        b_area_quad = self.mesh.b_area_quad / 2
-        b_i_quad = self.mesh.b_i_quad
-        b_j_quad = self.mesh.b_j_quad
-        b_k_quad = self.mesh.b_k_quad
-        b_j2_quad = self.mesh.b_j2_quad
-        K_L_n = self.mpfad.multiply(b_N_IJK_quad, perm, b_N_IJK_quad)
-        K_L_JI = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_JI_quad)
-        K_L_JK = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_JK_quad)
-        K_L_J2I = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_J2I_quad)
-        K_L_J2K = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_J2K_quad)
-        D_JK_quad = self.mpfad.d_flux_term(b_tan_JK_quad, b_LJ_quad,
-                                           b_area_quad, b_h_L_quad,
-                                           K_L_n, K_L_JK, boundary=is_boundary)
-        D_JI_quad = self.mpfad.d_flux_term(b_tan_JI_quad, b_LJ_quad,
-                                           b_area_quad, b_h_L_quad,
-                                           K_L_n, K_L_JI, boundary=is_boundary)
-        D_J2K_quad = self.mpfad.d_flux_term(b_tan_J2K_quad, b_LJ2_quad,
-                                            b_area_quad, b_h_L_quad,
-                                            K_L_n, K_L_J2K,
-                                            boundary=is_boundary)
-        D_J2I_quad = self.mpfad.d_flux_term(b_tan_J2I_quad, b_LJ2_quad,
-                                            b_area_quad, b_h_L_quad,
-                                            K_L_n, K_L_J2I,
-                                            boundary=is_boundary)
-        K_eq_quad = self.mpfad.n_flux_term(K_L_n, b_h_L_quad, b_area_quad,
-                                           boundary=is_boundary)
+        # b_left_volumes_quad = self.mesh.b_left_volumes_quad
+        # b_N_IJK_quad = self.mesh.b_N_IJK_quad
+        # b_tan_JI_quad = self.mesh.b_tan_JI_quad
+        # b_tan_JK_quad = self.mesh.b_tan_JK_quad
+        # b_tan_J2I_quad = self.mesh.b_tan_J2I_quad
+        # b_tan_J2K_quad = self.mesh.b_tan_J2K_quad
+        # b_LJ_quad = self.mesh.b_LJ_quad
+        # b_LJ2_quad = self.mesh.b_LJ2_quad
+        # b_h_L_quad = self.mesh.b_h_L_quad
+        # b_area_quad = self.mesh.b_area_quad / 2
+        # b_i_quad = self.mesh.b_i_quad
+        # b_j_quad = self.mesh.b_j_quad
+        # b_k_quad = self.mesh.b_k_quad
+        # b_j2_quad = self.mesh.b_j2_quad
+        # K_L_n = self.mpfad.multiply(b_N_IJK_quad, perm, b_N_IJK_quad)
+        # K_L_JI = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_JI_quad)
+        # K_L_JK = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_JK_quad)
+        # K_L_J2I = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_J2I_quad)
+        # K_L_J2K = self.mpfad.multiply(b_N_IJK_quad, perm, b_tan_J2K_quad)
+        # D_JK_quad = self.mpfad.d_flux_term(b_tan_JK_quad, b_LJ_quad,
+        #                                    b_area_quad, b_h_L_quad,
+        #                                    K_L_n, K_L_JK, boundary=is_boundary)
+        # D_JI_quad = self.mpfad.d_flux_term(b_tan_JI_quad, b_LJ_quad,
+        #                                    b_area_quad, b_h_L_quad,
+        #                                    K_L_n, K_L_JI, boundary=is_boundary)
+        # D_J2K_quad = self.mpfad.d_flux_term(b_tan_J2K_quad, b_LJ2_quad,
+        #                                     b_area_quad, b_h_L_quad,
+        #                                     K_L_n, K_L_J2K,
+        #                                     boundary=is_boundary)
+        # D_J2I_quad = self.mpfad.d_flux_term(b_tan_J2I_quad, b_LJ2_quad,
+        #                                     b_area_quad, b_h_L_quad,
+        #                                     K_L_n, K_L_J2I,
+        #                                     boundary=is_boundary)
+        # K_eq_quad = self.mpfad.n_flux_term(K_L_n, b_h_L_quad, b_area_quad,
+        #                                    boundary=is_boundary)
 
-        b_ids_left = np.append(b_left_volumes_tri, b_left_volumes_quad)
-        b_LHS = np.append(K_eq_tri, K_eq_quad)
+        # b_ids_left = np.append(b_left_volumes_tri, b_left_volumes_quad)
+        # b_LHS = np.append(K_eq_tri, K_eq_quad)
         # g_I, g_J, g_K = self.mesh.nodes_pressure(b_i_quad, b_j_quad,
         #                                          b_k_quad)
         # RHS_tri = (D_JK * (g_I - g_J) - K_eq_tri * g_J + D_JI * (g_J - g_K))
@@ -137,28 +140,28 @@ class MpfaD:
 
         is_boundary = False
 
-        in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
-        self.in_left_volumes_tri, self.in_right_volumes_tri =\
-            self.get_left_and_right_volumes(in_faces_tri)
-        self.in_N_IJK_tri, self.in_tan_JI_tri, self.in_tan_JK_tri =\
-            self.construct_face_vectors(in_faces_tri)
-        self.in_LR_tri, self.in_h_L_tri, self.in_h_R_tri =\
-            self.get_additional_vectors_and_height(in_faces_tri)
-        self.in_area_tri = self.get_area(in_faces_tri)
-        self.in_i_tri, self.in_j_tri, self.in_k_tri =\
-            self.get_position_IJK_verts(in_faces_tri)
-
-        in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
-        self.in_left_volumes_quad, self.in_right_volumes_quad =\
-            self.get_left_and_right_volumes(in_faces_quad)
-        self.b_N_IJK_quad, self.b_tan_JI_quad, self.b_tan_JK_quad,\
-            self.b_tan_J2I_quad, self.b_tan_J2K_quad =\
-            self.construct_face_vectors(in_faces_quad)
-        self.in_LR_quad, self.in_h_L_quad, self.in_h_R_quad =\
-            self.get_additional_vectors_and_height(in_faces_quad)
-        self.in_area_quad = self.get_area(in_faces_quad)
-        self.in_i_quad, self.in_j_quad, self.in_k_quad, self.in_j2_quad =\
-            self.get_position_IJK_verts(in_faces_quad)
+        # in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
+        # self.in_left_volumes_tri, self.in_right_volumes_tri =\
+        #     self.get_left_and_right_volumes(in_faces_tri)
+        # self.in_N_IJK_tri, self.in_tan_JI_tri, self.in_tan_JK_tri =\
+        #     self.construct_face_vectors(in_faces_tri)
+        # self.in_LR_tri, self.in_h_L_tri, self.in_h_R_tri =\
+        #     self.get_additional_vectors_and_height(in_faces_tri)
+        # self.in_area_tri = self.get_area(in_faces_tri)
+        # self.in_i_tri, self.in_j_tri, self.in_k_tri =\
+        #     self.get_position_IJK_verts(in_faces_tri)
+        #
+        # in_faces_tri, in_faces_quad = self.screen_faces_by_verts(self.in_faces)
+        # self.in_left_volumes_quad, self.in_right_volumes_quad =\
+        #     self.get_left_and_right_volumes(in_faces_quad)
+        # self.b_N_IJK_quad, self.b_tan_JI_quad, self.b_tan_JK_quad,\
+        #     self.b_tan_J2I_quad, self.b_tan_J2K_quad =\
+        #     self.construct_face_vectors(in_faces_quad)
+        # self.in_LR_quad, self.in_h_L_quad, self.in_h_R_quad =\
+        #     self.get_additional_vectors_and_height(in_faces_quad)
+        # self.in_area_quad = self.get_area(in_faces_quad)
+        # self.in_i_quad, self.in_j_quad, self.in_k_quad, self.in_j2_quad =\
+        #     self.get_position_IJK_verts(in_faces_quad)
 
 
         # self.T.InsertGlobalValues(ids_cols, ids_rows, values)
@@ -174,10 +177,11 @@ class MpfaD:
 
 
     def solve_linear_problem(self):
-        self.T.FillComplete()
-        linearProblem = Epetra.LinearProblem(self.T, self.x, self.Q)
-        solver = AztecOO.AztecOO(linearProblem)
-        solver.SetAztecOption(AztecOO.AZ_solver, AztecOO.AZ_gmres)
-        solver.SetAztecOption(AztecOO.AZ_output, AztecOO.AZ_none)
-        solver.Iterate(2000, 1e-16)
+        pass
+        # self.T.FillComplete()
+        # linearProblem = Epetra.LinearProblem(self.T, self.x, self.Q)
+        # solver = AztecOO.AztecOO(linearProblem)
+        # solver.SetAztecOption(AztecOO.AZ_solver, AztecOO.AZ_gmres)
+        # solver.SetAztecOption(AztecOO.AZ_output, AztecOO.AZ_none)
+        # solver.Iterate(2000, 1e-16)
         # return self.x
