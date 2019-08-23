@@ -11,6 +11,6 @@ import preprocessor.geoUtil.geoTools as gtool
 #foobar = imp.load_source('20.h5m', '/mesh')
 
 start = time.time()
-M = msh('20.h5m', dim = 3)
+M = msh('mesh/20.h5m', dim = 3)
 end = time.time()
 print("The preprocessing step lasted {0}s".format(end-start))

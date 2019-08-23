@@ -8,7 +8,7 @@ import yaml
 from math import sqrt
 from pymoab import core, types, rng, topo_util
 from . corePymoab import CoreMoab
-from . meshComponents import MeshEntities, MoabVariable
+from . meshComponents import MeshEntities  # , MoabVariable
 
 # print('Standard fine-scale mesh loaded: No multiscale components available')
 
@@ -65,7 +65,7 @@ class FineScaleMesh:
                 exec(command)
     def init_entities(self):
         self.nodes = MeshEntities(self.core, entity_type = "nodes")
-        self.edges = MeshEntities(self.core, entity_type="edges")
+        self.edges = MeshEntities(self.core, entity_type= "edges")
         self.faces = MeshEntities(self.core, entity_type = "faces")
         if self.dim == 3:
             self.volumes = MeshEntities(self.core, entity_type = "volumes")
